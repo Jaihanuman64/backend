@@ -1,5 +1,5 @@
 const express = require('express');
-
+const {generateFile} = require('./generateFile');
 const app = express();
 
 app.use(express.urlencoded({extended: true}));
@@ -9,7 +9,7 @@ app.get("/",(req,res)=>{
     return res.json({hello: "world"});
 })
 
-app.post("/run",(req,res)=>{
+app.post("/run",async(req,res)=>{
     // console.log(req.body);
     
 
@@ -20,9 +20,10 @@ app.post("/run",(req,res)=>{
     }
 
     //need to generate a c++ file with content from the request
+    const filepath = await generateFile(language,code)
     //we need to run the file and send the response
 
-    return res.json({language,code});
+    return res.json({filepath});
 })
 
 
