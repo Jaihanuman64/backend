@@ -15,75 +15,75 @@ async function main() {
 
   // use `await mongoose.connect('mongodb://user:password@127.0.0.1:27017/test');` if your database has auth enabled
 }
+
 const app = express();
 
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.get("/status", async (req, res) => {
-  const jobID = req.query.id;
-  console.log("status requested",jobId);
-  if (jobId == undefined) {
-    return res
-      .status(400)
-      .json({ success: false, error: "missing if query param" });
+app.post("/run", async (req, res) => {
+  const { language = "cpp", code } = req.body;
+
+  console.log(language, "Length:", code.length);
+
+  if (code === undefined) {
+    return res.status(400).json({ success: false, error: "Empty code body!" });
   }
-  // console.log(jobId);
+
+  let job;
+
   try {
-    const job = await Job.findById(jobId);
-    if (jobId == undefined) {
-      return res.status(404).json({ success: false, error: "invalid job ID" });
+    // need to generate a c++ file with content from the request
+    const filepath = await generateFile(language, code);
+
+    // write into DB
+    job = await new Job({ language, filepath }).save();
+
+    const jobId = job["_id"];
+    res.status(201).json({ jobId });
+
+    // we need to run the file and send the response
+    let output;
+    job["startedAt"] = new Date();
+    if (language === "cpp") {
+      output = await executeCpp(filepath);
+    } else if (language === "py") {
+      output = await executePy(filepath);
     }
-    return res
-      .status(200)
-      .json({ success: false, error: "missing if query param" });
+    console.log(output);
+
+    job["completedAt"] = new Date();
+    job["output"] = output;
+    job["status"] = "success";
+    await job.save();
   } catch (err) {
-    return res.status(400).json(job);
+    console.error(err);
+    job["completedAt"] = new Date();
+    job["output"] = JSON.stringify(err);
+    job["status"] = "error";
+    await job.save();
   }
 });
 
-app.post("/run", async (req, res) => {
-  // console.log(req.body);
+app.get("/status", async (req, res) => {
+  const jobId = req.query.id;
 
-  const { language = "cpp", code } = req.body; //sending cpp as default language //equivalent to const language = req.body.language; // const code = req.body.code;
-
-  if (code === undefined) {
-    return res.status(400).json({ success: false, error: "Empty code body" });
+  if (jobId === undefined) {
+    return res
+      .status(400)
+      .json({ success: false, error: "missing id query param" });
   }
-  let job;
-  try {
-    //need to generate a c++ file with content from the request
-    const filepath = await generateFile(language, code);
-    //we need to run the file and send the response
-    job = await new Job({ language, filepath }).save();
-    const jobId = job["_id"];
 
-    res.status(201).json({ success: true, jobId });
-    console.log(job);
-    let output;
-    job["startedAt"] = new Date();
-    if (language === "py") {
-      output = await executePy(filepath);
-    } else if (language === "cpp") {
-      output = await executeCpp(filepath);
-    }
-    job["completedAt"] = new Date();
-    job["status"] = "success";
-    job["output"] = "output";
-    await job.save();
-    console.log(job);
-    // return res.json({ filepath, output });
-  } catch (err) {
-    job["completedAt"] = new Date();
-    job["status"] = "error";
-    job["output"] = JSON.stringify(err);
-    await job.save();
-    console.log(job);
-    // res.status(500).json({ err });
+  const job = await Job.findById(jobId);
+
+  if (job === undefined) {
+    return res.status(400).json({ success: false, error: "couldn't find job" });
   }
+
+  return res.status(200).json({ success: true, job });
 });
 
 app.listen(5000, () => {
-  console.log("listening on port 5000");
+  console.log(`Listening on port 5000!`);
 });
