@@ -10,8 +10,8 @@ if (!fs.existsSync(outputPath)) {
 const executeCpp = (filepath) => {
   const jobId = path.basename(filepath).split(".")[0];
   const outPath = path.join(outputPath, `${jobId}.out`);
-  console.log(outPath);
-  console.log(`g++ ${filepath} -o ${outPath} && cd ${outputPath} && .\\${jobId}.exe`)
+  // console.log(outPath);
+  // console.log(`g++ ${filepath} -o ${outPath} && cd ${outputPath} && .\\${jobId}.exe`)
   return new Promise((resolve, reject) => {
     //C:\Users\ASUS\Desktop\MBM\backend\codes\7cefac1b-b4aa-4a3c-8b1f-28757232b491.cpp
     exec(
